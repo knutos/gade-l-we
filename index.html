@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gade, Løwe og Gulpertstein</title>
+<title>Gade og Løwe</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
@@ -19,7 +19,7 @@ p.sub{margin:0;color:var(--muted)}
 label.l{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 textarea{width:100%;box-sizing:border-box;font:16px var(--mono);padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);resize:vertical;min-height:64px}
 textarea:focus,button:focus-visible,input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg span{display:block;padding:8px 14px;cursor:pointer;background:var(--card)}
 .seg input:checked+span{background:var(--accent);color:var(--bg);font-weight:600}
@@ -38,6 +38,10 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 .cell i{display:block;font:11px var(--mono);font-style:normal;color:var(--muted)}
 .conv{font:14px var(--mono);display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--fg)}
 .conv i{font-style:normal;color:var(--muted)}
+.pyr{display:grid;gap:4px;overflow-x:auto;font-family:var(--mono)}
+.pyr div{display:flex;gap:10px;align-items:baseline;white-space:nowrap}
+.pyr b{width:22px;color:var(--muted);font-weight:400;font-size:13px}
+.pyr span{font-size:18px;font-weight:600;letter-spacing:.35em;font-variant-numeric:tabular-nums}
 .note{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
 .note p{margin:0 0 6px}
 </style>
@@ -45,13 +49,14 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 </head>
 <body>
 <main>
-  <div><h1>Gade, Løwe og Gulpertstein</h1><p class="sub">Skriv tallene/teksten, velg metode og retning.</p></div>
+  <div><h1>Gade, Løwe, Gulpertstein og Geotosse</h1><p class="sub">Skriv tallene/teksten, velg metode og retning.</p></div>
   <div><label class="l" for="inp">Kjente tall / bokstaver</label><textarea id="inp" placeholder="Skriv tall eller tekst"></textarea></div>
   <div class="row">
     <div><label class="l">Metode</label><div class="seg">
       <label><input type="radio" name="m" id="m-gade" value="gade" checked><span>Gade</span></label>
       <label><input type="radio" name="m" id="m-loewe" value="loewe"><span>Løwe</span></label>
-      <label><input type="radio" name="m" id="m-gulp" value="gulp"><span>Gulpertstein</span></label></div></div>
+      <label><input type="radio" name="m" id="m-gulp" value="gulp"><span>Gulpertstein</span></label>
+      <label><input type="radio" name="m" id="m-tosse" value="tosse"><span>Geotosse</span></label></div></div>
     <div><label class="l">Retning</label><div class="seg">
       <label><input type="radio" name="d" id="d-fwd" value="fwd" checked><span>Forlengs</span></label>
       <label><input type="radio" name="d" id="d-back" value="back"><span>Baklengs</span></label></div></div>
@@ -63,7 +68,8 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
     <p><b>Gade:</b> alle sifre sortert, deretter manglende sifre 0–9 lagt til. A = første siffer, B = neste osv.</p>
     <p><b>Løwe:</b> partall sortert + manglende partall, deretter oddetall sortert + manglende oddetall.</p>
     <p><b>Gulpertstein:</b> hver bokstav får sin plass i alfabetet (A=1 … Å=29), sifre beholder verdien. Første tegn blir A, neste B osv. Blir et regnestykke større enn 9, brukes bare siste siffer (vist under verdien).</p>
-    <p><b>Baklengs:</b> samme regler, men synkende rekkefølge (9→0). Grå sifre er de som manglet. For Gulpertstein leses teksten bakfra.</p>
+    <p><b>Geotosse:</b> sifrene danner rad A. Hvert par naboer legges sammen, og siste siffer går ned i neste rad, helt til én rad har ett siffer igjen. Radens sifre blir tallet, f.eks. 1, 9, 0 gir M = 190.</p>
+    <p><b>Baklengs:</b> samme regler, men synkende rekkefølge (9→0). Grå sifre er de som manglet. For Gulpertstein og Geotosse leses teksten bakfra.</p>
   </div>
 </main>
 <script>
@@ -91,6 +97,17 @@ function render(){
   const back=document.querySelector('input[name=d]:checked').value==="back";
   const d=digitsOf($("inp").value,true);
   $("conv").innerHTML=[...$("inp").value.toUpperCase()].filter(c=>/[0-9]/.test(c)||AB.includes(c)).map(c=>/[0-9]/.test(c)?c:`<span><i>${c}=</i>${AB.indexOf(c)+1}</span>`).join("")||"<i>–</i>";
+  if(method==="tosse"){
+    let row=back?[...d].reverse():[...d];const rows=[];
+    while(row.length){rows.push(row);row=row.slice(1).map((v,i)=>(v+row[i])%10);}
+    const txt=rows.map((r,i)=>`${letterName(i)} = ${r.join("")}`).join("\n");
+    $("strip").innerHTML=`<small>${d.length} sifre, ${rows.length} rader</small> <button class="copy" id="cp">Kopier</button>`;
+    $("cp").onclick=()=>{navigator.clipboard?.writeText(txt).then(()=>$("cp").textContent="Kopiert",()=>{}).catch(()=>{});};
+    $("grid").innerHTML=`<div class="pyr">${rows.map((r,i)=>`<div><b>${letterName(i)}</b><span style="padding-left:${i*.675}em">${r.join("")}</span></div>`).join("")||'<div><span class="fill">–</span></div>'}</div>`;
+    $("grid").style.display="block";
+    return;
+  }
+  $("grid").style.display="";
   if(method==="gulp"){
     let ch=[...$("inp").value.toUpperCase()].filter(c=>/[0-9]/.test(c)||AB.includes(c));
     if(back) ch.reverse();
