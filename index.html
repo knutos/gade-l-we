@@ -42,6 +42,15 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 .pyr div{display:flex;gap:10px;align-items:baseline;white-space:nowrap}
 .pyr b{width:22px;color:var(--muted);font-weight:400;font-size:13px}
 .pyr span{font-size:18px;font-weight:600;letter-spacing:.35em;font-variant-numeric:tabular-nums}
+.formula{display:grid;gap:8px}
+.formula input[type=text]{width:100%;box-sizing:border-box;font:16px var(--mono);padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+.formula input[type=text]:focus{outline:2px solid var(--accent);outline-offset:2px}
+.fxout{border:1px solid var(--accent);border-radius:6px;padding:12px 14px;background:var(--card);display:grid;gap:8px}
+.coord{font:600 20px var(--mono);word-break:break-word;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.coord .bad{color:#c2410c}
+.fxmsg{font-size:13px;color:var(--muted)}
+.fxlinks{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+.fxlinks a{color:var(--accent)}
 .help{border-top:1px solid var(--line);padding-top:16px;display:grid;gap:10px}
 .help h2{font-size:17px;margin:0}
 .help .lead,.help .tip{margin:0;color:var(--muted);font-size:14px;max-width:65ch}
@@ -70,6 +79,16 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
     <div><label class="l">Retning</label><div class="seg">
       <label><input type="radio" name="d" id="d-fwd" value="fwd" checked><span>Forlengs</span></label>
       <label><input type="radio" name="d" id="d-back" value="back"><span>Baklengs</span></label></div></div>
+  </div>
+  <div class="formula">
+    <label class="l" for="fx">Koordinatformel (valgfritt)</label>
+    <input type="text" id="fx" autocomplete="off" spellcheck="false" placeholder="F.eks. N60 16.GID E010 49.JBI eller N59 5(A+B).[C*2]DE">
+    <label class="chk"><input type="checkbox" id="last"> Bruk bare siste siffer når et regnestykke blir større enn 9</label>
+    <div class="fxout" id="fxout" hidden>
+      <div class="coord" id="coord"></div>
+      <div class="fxmsg" id="fxmsg"></div>
+      <div class="fxlinks" id="fxlinks"></div>
+    </div>
   </div>
   <div><label class="l">Bokstaver som tall (A=1 … Z=26, Æ=27, Ø=28, Å=29)</label><div class="conv" id="conv"></div></div>
   <div><label class="l">Tallrekke</label><div class="strip" id="strip"></div></div>
@@ -120,6 +139,64 @@ function build(d,method,back){
   return part(x=>x%2===0).concat(part(x=>x%2===1));
 }
 function letterName(i){let s="";i++;while(i>0){i--;s=String.fromCharCode(65+i%26)+s;i=Math.floor(i/26);}return s;}
+
+const HEMI={N:"N",S:"S",E:"E",W:"W",Ø:"E",O:"E",V:"W",NORD:"N",SYD:"S",SØR:"S",ØST:"E",VEST:"W",NORTH:"N",SOUTH:"S",EAST:"E",WEST:"W"};
+function fmt(n,last){if(!Number.isFinite(n))return null;n=Math.round(n*1e6)/1e6;if(last&&Number.isInteger(n)&&Math.abs(n)>9)n=Math.abs(n)%10;return String(n);}
+function applyFormula(f,vals,last){
+  const missing=new Set();let bad=false;
+  const val=L=>{const i=L.charCodeAt(0)-65;if(i<0||i>25||i>=vals.length){missing.add(L);return null;}return vals[i];};
+  const evalExpr=e=>{
+    let ok=true;const x=e.toUpperCase().replace(/[×x]/gi,"*").replace(/:/g,"/").replace(/[A-Z]/g,L=>{const v=val(L);if(v==null){ok=false;return"0";}return"("+v+")";});
+    if(!ok||!/^[0-9+\-*/(). ]+$/.test(x))return null;
+    try{return fmt(Function("return ("+x+")")(),last);}catch(_){return null;}
+  };
+  let out="",i=0,hemis=0,seenDot=false;
+  while(i<f.length){
+    const c=f[i];
+    if(c==="("||c==="["){
+      const close=c==="("?")":"]";let depth=1,j=i+1;
+      while(j<f.length&&depth){if(f[j]===c)depth++;else if(f[j]===close)depth--;j++;}
+      const r=evalExpr(f.slice(i+1,j-1).replace(/[\[\]]/g,m=>m==="["?"(":")"));
+      if(r==null){bad=true;out+="⟨?⟩";}else out+=r;
+      i=j;continue;
+    }
+    const m=/^[A-Za-zÆØÅæøå]+/.exec(f.slice(i));
+    if(m){
+      const w=m[0],U=w.toUpperCase(),prev=f[i-1],next=f[i+w.length];
+      const atStart=i===0||/[\s\-–,;\/]/.test(prev);
+      const endOk=next===undefined||/[\s0-9°]/.test(next);
+      if(HEMI[U]&&atStart&&endOk&&hemis<2&&(hemis===0?out.trim()==="":seenDot)){out+=HEMI[U];hemis++;seenDot=false;i+=w.length;continue;}
+      for(const L of U){const v=/[A-Z]/.test(L)?val(L):null;if(v==null){missing.add(L);out+="?";}else out+=v;}
+      i+=w.length;continue;
+    }
+    if((c===","||c===";")&&/[A-Za-z)\]]/.test(f[i-1]||"")&&/[A-Za-z(\[]/.test((f.slice(i+1).trimStart()[0])||"")){i++;continue;}
+    if(c===".")seenDot=true;
+    out+=c;i++;
+  }
+  return{out,missing:[...missing],bad};
+}
+function parseDDM(s){
+  const r=/([NS])\s*(\d{1,2})\s*°?\s+(\d{1,2}(?:[.,]\d+)?)\s*['′]?\s*[,;\-–\/]?\s*([EW])\s*(\d{1,3})\s*°?\s+(\d{1,2}(?:[.,]\d+)?)/.exec(s.replace(/(\d)°(\d)/g,"$1° $2"));
+  if(!r)return null;
+  const lat=(+r[2]+ +r[3].replace(",",".")/60)*(r[1]==="S"?-1:1),lon=(+r[5]+ +r[6].replace(",",".")/60)*(r[4]==="W"?-1:1);
+  if(+r[3].replace(",",".")>=60||+r[6].replace(",",".")>=60||Math.abs(lat)>90||Math.abs(lon)>180)return null;
+  return{lat,lon};
+}
+function renderFormula(vals){
+  const f=$("fx").value.trim();$("fxout").hidden=!f;if(!f)return;
+  const{out,missing,bad}=applyFormula(f,vals,$("last").checked);
+  const esc=t=>t.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[m]);
+  $("coord").innerHTML=esc(out).replace(/\?|⟨\?⟩/g,m=>`<span class="bad">${esc(m)}</span>`)+' <button class="copy" id="cpfx">Kopier</button>';
+  $("cpfx").onclick=()=>{navigator.clipboard?.writeText(out).then(()=>$("cpfx").textContent="Kopiert",()=>{}).catch(()=>{});};
+  const msg=[];
+  if(missing.length)msg.push(`Mangler verdi for ${missing.join(", ")}. Skriv inn flere tall eller tekst over.`);
+  if(bad)msg.push("Et regnestykke i parentes kunne ikke regnes ut. Bruk tall, bokstaver og + − × ÷.");
+  const p=!missing.length&&!bad?parseDDM(out):null;
+  if(p){const la=p.lat.toFixed(6),lo=p.lon.toFixed(6);msg.push(`Desimalgrader: ${la}, ${lo}`);
+    $("fxlinks").innerHTML=`<a href="https://www.google.com/maps?q=${la},${lo}" target="_blank" rel="noopener">Google Maps</a><a href="https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=16/${la}/${lo}" target="_blank" rel="noopener">OpenStreetMap</a>`;}
+  else $("fxlinks").innerHTML="";
+  $("fxmsg").textContent=msg.join(" ");
+}
 let lastM=null;
 function render(){
   const method=document.querySelector('input[name=m]:checked').value;
@@ -136,6 +213,7 @@ function render(){
     $("cp").onclick=()=>{navigator.clipboard?.writeText(txt).then(()=>$("cp").textContent="Kopiert",()=>{}).catch(()=>{});};
     $("grid").innerHTML=`<div class="pyr">${rows.map((r,i)=>`<div><b>${letterName(i)}</b><span style="padding-left:${i*.675}em">${r.join("")}</span></div>`).join("")||'<div><span class="fill">–</span></div>'}</div>`;
     $("grid").style.display="block";
+    renderFormula(rows.map(r=>r.join("")));
     return;
   }
   $("grid").style.display="";
@@ -148,6 +226,7 @@ function render(){
       ` <small>${ch.length} tegn</small> <button class="copy" id="cp">Kopier</button>`;
     $("cp").onclick=()=>{navigator.clipboard?.writeText(txt).then(()=>$("cp").textContent="Kopiert",()=>{}).catch(()=>{});};
     $("grid").innerHTML=vals.map((v,i)=>`<div class="cell"><b>${letterName(i)}</b><span>${v}</span>${v>9?`<i>…${v%10}</i>`:""}</div>`).join("");
+    renderFormula(vals.map(String));
     return;
   }
   const seq=build(d,method,back);
@@ -156,7 +235,9 @@ function render(){
     ` <small>${d.length} sifre funnet</small> <button class="copy" id="cp">Kopier</button>`;
   $("cp").onclick=()=>{navigator.clipboard?.writeText(txt).then(()=>$("cp").textContent="Kopiert",()=>{}).catch(()=>{});};
   $("grid").innerHTML=seq.map((x,i)=>`<div class="cell ${method==="loewe"?(x.v%2?"o":"e"):""} ${x.m?"m":""}"><b>${letterName(i)}</b><span>${x.v}</span></div>`).join("");
+  renderFormula(seq.map(x=>String(x.v)));
 }
+document.querySelectorAll("input[name=m]").forEach(e=>e.addEventListener("change",()=>{$("last").checked=e.value==="gulp";render();}));
 document.querySelectorAll("input,textarea").forEach(e=>e.addEventListener("input",render));
 render();
 </script>
