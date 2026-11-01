@@ -42,6 +42,16 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 .pyr div{display:flex;gap:10px;align-items:baseline;white-space:nowrap}
 .pyr b{width:22px;color:var(--muted);font-weight:400;font-size:13px}
 .pyr span{font-size:18px;font-weight:600;letter-spacing:.35em;font-variant-numeric:tabular-nums}
+.help{border-top:1px solid var(--line);padding-top:16px;display:grid;gap:10px}
+.help h2{font-size:17px;margin:0}
+.help .lead,.help .tip{margin:0;color:var(--muted);font-size:14px;max-width:65ch}
+.help details{border:1px solid var(--line);border-radius:6px;background:var(--card)}
+.help summary{cursor:pointer;padding:10px 14px;font-weight:600;list-style-position:inside}
+.help details[open] summary{border-bottom:1px solid var(--line)}
+.help ol{margin:10px 0;padding:0 14px 0 34px;display:grid;gap:4px}
+.help .ex{margin:0 14px 10px;padding:10px 12px;background:var(--bg);border-radius:6px;font-size:14px;line-height:1.7;overflow-x:auto}
+.help .back{margin:0 14px 12px;font-size:14px;color:var(--muted)}
+.help code{font-family:var(--mono);font-size:14px;color:var(--fg)}
 .note{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
 .note p{margin:0 0 6px}
 </style>
@@ -64,13 +74,31 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
   <div><label class="l">Bokstaver som tall (A=1 … Z=26, Æ=27, Ø=28, Å=29)</label><div class="conv" id="conv"></div></div>
   <div><label class="l">Tallrekke</label><div class="strip" id="strip"></div></div>
   <div><label class="l">Bokstavverdier</label><div class="grid" id="grid"></div></div>
-  <div class="note">
-    <p><b>Gade:</b> alle sifre sortert, deretter manglende sifre 0–9 lagt til. A = første siffer, B = neste osv.</p>
-    <p><b>Løwe:</b> partall sortert + manglende partall, deretter oddetall sortert + manglende oddetall.</p>
-    <p><b>Gulpertstein:</b> hver bokstav får sin plass i alfabetet (A=1 … Å=29), sifre beholder verdien. Første tegn blir A, neste B osv. Blir et regnestykke større enn 9, brukes bare siste siffer (vist under verdien).</p>
-    <p><b>Geotosse:</b> sifrene danner rad A. Hvert par naboer legges sammen, og siste siffer går ned i neste rad, helt til én rad har ett siffer igjen. Radens sifre blir tallet, f.eks. 1, 9, 0 gir M = 190.</p>
-    <p><b>Baklengs:</b> samme regler, men synkende rekkefølge (9→0). Grå sifre er de som manglet. For Gulpertstein og Geotosse leses teksten bakfra.</p>
-  </div>
+  <section class="help" aria-labelledby="help-h">
+    <h2 id="help-h">Slik fungerer metodene</h2>
+    <p class="lead">Alle metodene gjør om tallene eller teksten fra en cache til bokstavverdier (A, B, C …) som du setter inn i koordinatmalen. Bokstaver i det du skriver gjøres først om til plassen sin i alfabetet: A=1, B=2 … Z=26, Æ=27, Ø=28, Å=29. «KO» blir altså 11 og 15.</p>
+    <details data-m="gade"><summary>Gade</summary>
+      <ol><li>Skriv opp alle sifrene du har funnet.</li><li>Sorter dem fra lavest til høyest. Like sifre tas med like mange ganger.</li><li>Legg til sifrene 0–9 som ikke er med, også i stigende rekkefølge.</li><li>Første siffer blir A, neste B, og så videre.</li></ol>
+      <div class="ex"><b>Eksempel:</b> 6, 17, 9, 6 gir sifrene 6 1 7 9 6.<br>Sortert: <code>16679</code> + manglende <code>023458</code> = <code>16679023458</code><br>A=1 B=6 C=6 D=7 E=9 F=0 G=2 H=3 I=4 J=5 K=8</div>
+      <p class="back"><b>Baklengs (EDAG):</b> sorter fra høyest til lavest, og legg til de manglende synkende: <code>97661854320</code>.</p>
+    </details>
+    <details data-m="loewe"><summary>Løwe</summary>
+      <ol><li>Del sifrene i partall (0 2 4 6 8) og oddetall (1 3 5 7 9).</li><li>Sorter partallene stigende og legg til partallene som mangler.</li><li>Sorter oddetallene stigende og legg til oddetallene som mangler.</li><li>Sett partallsrekken først og oddetallsrekken etter. Første siffer blir A.</li></ol>
+      <div class="ex"><b>Eksempel:</b> 6, 17, 9, 6 gir sifrene 6 1 7 9 6.<br>Partall: <code>66</code> + <code>0248</code> · Oddetall: <code>179</code> + <code>35</code><br>Samlet: <code>66024817935</code> → A=6 B=6 C=0 …</div>
+      <p class="back"><b>Baklengs:</b> begge grupper sorteres synkende: <code>66842097153</code>.</p>
+    </details>
+    <details data-m="gulp"><summary>Gulpertstein</summary>
+      <ol><li>Ta et ord, for eksempel et navn fra et skilt.</li><li>Hver bokstav får plassen sin i alfabetet. Sifre beholder verdien.</li><li>Første tegn blir A, andre B, og så videre. Det blir ingen sortering og ingen utfylling.</li><li>Sett verdiene inn i koordinatformelen. Blir et regnestykke større enn 9, bruker du bare siste siffer.</li></ol>
+      <div class="ex"><b>Eksempel:</b> «GEO» gir A=7 B=5 C=15.<br>Står det (C+2) i formelen, blir det 17, og du bruker <code>7</code>.</div>
+      <p class="back"><b>Baklengs:</b> ordet leses bakfra, så «GEO» gir A=15 B=5 C=7.</p>
+    </details>
+    <details data-m="tosse"><summary>Geotosse</summary>
+      <ol><li>Skriv sifrene på én rad. Dette er rad A.</li><li>Legg sammen hvert par sifre som står ved siden av hverandre, og skriv bare siste siffer av summen på raden under (rad B).</li><li>Gjenta til det står ett siffer igjen. Hver rad blir én kortere.</li><li>Sifrene på en rad leses som ett tall, f.eks. 1, 9, 0 gir 190.</li></ol>
+      <div class="ex"><b>Eksempel:</b> 6, 17, 9, 6<br><code>A 61796</code><br><code>B &nbsp;7865</code> (6+1=7, 1+7=8, 7+9=16→6, 9+6=15→5)<br><code>C &nbsp;&nbsp;541</code><br><code>D &nbsp;&nbsp;&nbsp;95</code><br><code>E &nbsp;&nbsp;&nbsp;&nbsp;4</code></div>
+      <p class="back"><b>Baklengs:</b> rad A skrives i motsatt rekkefølge (69716) før du regner nedover.</p>
+    </details>
+    <p class="tip">Tips: forklaringen til metoden du har valgt, åpnes automatisk.</p>
+  </section>
 </main>
 <script>
 const AB="ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ";
@@ -92,10 +120,13 @@ function build(d,method,back){
   return part(x=>x%2===0).concat(part(x=>x%2===1));
 }
 function letterName(i){let s="";i++;while(i>0){i--;s=String.fromCharCode(65+i%26)+s;i=Math.floor(i/26);}return s;}
+let lastM=null;
 function render(){
   const method=document.querySelector('input[name=m]:checked').value;
   const back=document.querySelector('input[name=d]:checked').value==="back";
   const d=digitsOf($("inp").value,true);
+  document.querySelectorAll(".help details").forEach(x=>{if(x.dataset.m===method&&lastM!==method)x.open=true;else if(lastM!==method)x.open=false;});
+  lastM=method;
   $("conv").innerHTML=[...$("inp").value.toUpperCase()].filter(c=>/[0-9]/.test(c)||AB.includes(c)).map(c=>/[0-9]/.test(c)?c:`<span><i>${c}=</i>${AB.indexOf(c)+1}</span>`).join("")||"<i>–</i>";
   if(method==="tosse"){
     let row=back?[...d].reverse():[...d];const rows=[];
