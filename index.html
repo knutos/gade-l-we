@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gade og Løwe</title>
+<title>Gade, Løwe og Gulpertstein</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
@@ -35,6 +35,7 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 .cell span{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
 .cell.e{background:var(--even)}.cell.o{background:var(--odd)}
 .cell.m span{color:var(--muted)}
+.cell i{display:block;font:11px var(--mono);font-style:normal;color:var(--muted)}
 .conv{font:14px var(--mono);display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--fg)}
 .conv i{font-style:normal;color:var(--muted)}
 .note{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
@@ -44,12 +45,13 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
 </head>
 <body>
 <main>
-  <div><h1>Gade og Løwe</h1><p class="sub">Skriv tallene/teksten, velg metode og retning.</p></div>
+  <div><h1>Gade, Løwe og Gulpertstein</h1><p class="sub">Skriv tallene/teksten, velg metode og retning.</p></div>
   <div><label class="l" for="inp">Kjente tall / bokstaver</label><textarea id="inp" placeholder="Skriv tall eller tekst"></textarea></div>
   <div class="row">
     <div><label class="l">Metode</label><div class="seg">
       <label><input type="radio" name="m" id="m-gade" value="gade" checked><span>Gade</span></label>
-      <label><input type="radio" name="m" id="m-loewe" value="loewe"><span>Løwe</span></label></div></div>
+      <label><input type="radio" name="m" id="m-loewe" value="loewe"><span>Løwe</span></label>
+      <label><input type="radio" name="m" id="m-gulp" value="gulp"><span>Gulpertstein</span></label></div></div>
     <div><label class="l">Retning</label><div class="seg">
       <label><input type="radio" name="d" id="d-fwd" value="fwd" checked><span>Forlengs</span></label>
       <label><input type="radio" name="d" id="d-back" value="back"><span>Baklengs</span></label></div></div>
@@ -60,7 +62,8 @@ button.copy{font:13px var(--sans);padding:6px 10px;border:1px solid var(--line);
   <div class="note">
     <p><b>Gade:</b> alle sifre sortert, deretter manglende sifre 0–9 lagt til. A = første siffer, B = neste osv.</p>
     <p><b>Løwe:</b> partall sortert + manglende partall, deretter oddetall sortert + manglende oddetall.</p>
-    <p><b>Baklengs:</b> samme regler, men synkende rekkefølge (9→0). Grå sifre er de som manglet.</p>
+    <p><b>Gulpertstein:</b> hver bokstav får sin plass i alfabetet (A=1 … Å=29), sifre beholder verdien. Første tegn blir A, neste B osv. Blir et regnestykke større enn 9, brukes bare siste siffer (vist under verdien).</p>
+    <p><b>Baklengs:</b> samme regler, men synkende rekkefølge (9→0). Grå sifre er de som manglet. For Gulpertstein leses teksten bakfra.</p>
   </div>
 </main>
 <script>
@@ -88,6 +91,17 @@ function render(){
   const back=document.querySelector('input[name=d]:checked').value==="back";
   const d=digitsOf($("inp").value,true);
   $("conv").innerHTML=[...$("inp").value.toUpperCase()].filter(c=>/[0-9]/.test(c)||AB.includes(c)).map(c=>/[0-9]/.test(c)?c:`<span><i>${c}=</i>${AB.indexOf(c)+1}</span>`).join("")||"<i>–</i>";
+  if(method==="gulp"){
+    let ch=[...$("inp").value.toUpperCase()].filter(c=>/[0-9]/.test(c)||AB.includes(c));
+    if(back) ch.reverse();
+    const vals=ch.map(c=>/[0-9]/.test(c)?+c:AB.indexOf(c)+1);
+    const txt=vals.join(", ");
+    $("strip").innerHTML=(ch.length?ch.map((c,i)=>`${c}=${vals[i]}`).join(" "):'<span class="fill">–</span>')+
+      ` <small>${ch.length} tegn</small> <button class="copy" id="cp">Kopier</button>`;
+    $("cp").onclick=()=>{navigator.clipboard?.writeText(txt).then(()=>$("cp").textContent="Kopiert",()=>{}).catch(()=>{});};
+    $("grid").innerHTML=vals.map((v,i)=>`<div class="cell"><b>${letterName(i)}</b><span>${v}</span>${v>9?`<i>…${v%10}</i>`:""}</div>`).join("");
+    return;
+  }
   const seq=build(d,method,back);
   const txt=seq.map(x=>x.v).join("");
   $("strip").innerHTML=seq.map(x=>x.m?`<span class="fill">${x.v}</span>`:x.v).join("")+
